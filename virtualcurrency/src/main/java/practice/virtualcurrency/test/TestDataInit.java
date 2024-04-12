@@ -13,9 +13,6 @@ import practice.virtualcurrency.test.service.TestService;
 public class TestDataInit {
     private final TestService testService;
 
-    /**
-     * 확인용 초기 데이터 추가
-     */
     @EventListener(ApplicationReadyEvent.class)
     public void initData() {
         log.info("test data init");

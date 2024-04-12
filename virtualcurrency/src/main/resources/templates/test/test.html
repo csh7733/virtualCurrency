@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>실시간 코인 가격 정보</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
+    <!-- Chart.js 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1>현재 코인 가격</h1>
+<div id="prices"></div> <!-- 코인 가격 정보를 동적으로 추가할 부모 요소 -->
+<!-- 차트를 표시할 캔버스 요소 추가 -->
+<canvas id="priceChart" width="600" height="400"></canvas>
+
+<script>
+    var socket = new SockJS('/ws'); // 서버의 Stomp 엔드포인트와 일치해야 함
+    var stompClient = Stomp.over(socket);
+    var priceDataPoints = []; // 가격 데이터 포인트 배열
+    var labels = []; // 라벨 배열 (여기서는 시간을 사용할 수 있음)
+    var chart = null; // 차트 인스턴스 초기화
+
+    function addData(chart, label, data) {
+        chart.data.labels.push(label);
+        chart.data.datasets.forEach((dataset) => {
+            dataset.data.push(data);
+        });
+        chart.update();
+    }
+
+    function createChart() {
+        var ctx = document.getElementById('priceChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line', // 라인 차트 형식 사용
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '코인 가격',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    data: priceDataPoints,
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: false, // 0부터 시작하지 않음
+                        suggestedMin: 100000000 - 5000, // 예상 최소값 (1억 원 - 5000원)
+                        suggestedMax: 100000000 + 5000, // 예상 최대값 (1억 원 + 5000원)
+                    }
+                }
+            }
+        });
+    }
+
+    stompClient.connect({}, function(frame) {
+        console.log('Connected: ' + frame);
+        createChart(); // 차트 생성
+        stompClient.subscribe('/coin', function(priceUpdate) {
+            var priceData = JSON.parse(priceUpdate.body);
+            var name = priceData.name;
+            var price = priceData.price;
+            var currentTime = new Date().toLocaleTimeString(); // 현재 시간을 라벨로 사용
+
+            addData(chart, currentTime, price); // 차트에 데이터 추가
+        });
+    });
+</script>
+
+</body>
+</html>
