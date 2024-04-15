@@ -14,20 +14,29 @@ public class Order {
     private Double price;
     private Double quantity;
     private State state;
+    private Double leverage;
 
     @ManyToOne
     @JoinColumn(name = "member_id")
     private Member member;
 
-    public Order(String coinName, Double price, Double quantity, State state, Member member) {
+    public Order(String coinName, Double price, Double quantity, State state, Member member,Double leverage) {
         this.coinName = coinName;
         this.price = price;
         this.quantity = quantity;
         this.state = state;
         this.member = member;
+        this.leverage = leverage;
     }
 
     public Order() {
+
+    }
+
+    public Order(String coinName) {
+        this.coinName = coinName;
+        price = quantity = 0.0;
+        leverage = 1.0;
     }
 
     @Override
@@ -39,6 +48,7 @@ public class Order {
                 ", total=" + price*quantity +
                 ", state=" + state +
                 ", member=" + member.getUsername() +
+                ", leverage=" + leverage +
                 '}';
     }
 }

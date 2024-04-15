@@ -7,8 +7,10 @@ import org.springframework.transaction.annotation.Transactional;
 import practice.virtualcurrency.domain.coin.Coin;
 import practice.virtualcurrency.domain.member.Member;
 import practice.virtualcurrency.domain.order.Order;
+import practice.virtualcurrency.domain.order.State;
 import practice.virtualcurrency.repository.member.MemberRepository;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,14 +30,6 @@ public class MemberServiceImpl implements MemberService{
     @Override
     public Optional<Member> findMember(String username, String password) {
         return memberRepository.findByUsernameAndPassword(username, password);
-    }
-    @Override
-    public void addOrder(Member member,Order order) {
-        member.addOrder(order);
-    }
-    @Override
-    public void removeOrder(Member member,Order order) {
-        member.removeOrder(order);
     }
 
     @Override

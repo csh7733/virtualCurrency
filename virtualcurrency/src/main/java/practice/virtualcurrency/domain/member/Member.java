@@ -29,16 +29,6 @@ public class Member {
         }
     }
 
-    public void addOrder(Order order) {
-        orders.add(order);
-        order.setMember(this);
-    }
-
-    public void removeOrder(Order order) {
-        orders.remove(order);
-        order.setMember(null);
-    }
-
     public Member() {
         initWallet();
     }

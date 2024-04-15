@@ -5,10 +5,11 @@ import practice.virtualcurrency.domain.order.Order;
 import practice.virtualcurrency.domain.order.State;
 
 public interface OrderService {
-    public void buyDesignatedPrice(Member member,String coinName,Double price,Double cash);
-    public void sellDesignatedPrice(Member member,String coinName,Double price,Double cash);
-    public Double buyMarketPrice(Member member,String coinName,Double price,Double cash);
-    public Double sellMarketPrice(Member member,String coinName,Double price,Double cash);
+    public Order buyDesignatedPrice(Member member,String coinName,Double price,Double cash,Double leverage);
+    public Order sellDesignatedPrice(Member member,String coinName,Double price,Double cash,Double leverage);
+    public Double buyMarketPrice(Member member,String coinName,Double price,Double cash,Double leverage);
+    public Double sellMarketPrice(Member member,String coinName,Double price,Double cash,Double leverage);
+    public boolean cancelOrder(Order order);
     //For Test
     public void printMap(State state, String coinName);
     public void clearOrderBook();

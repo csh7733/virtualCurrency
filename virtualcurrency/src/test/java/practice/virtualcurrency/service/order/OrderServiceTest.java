@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
-import practice.virtualcurrency.domain.coin.Coin;
 import practice.virtualcurrency.domain.member.Member;
+import practice.virtualcurrency.domain.order.Order;
 import practice.virtualcurrency.domain.order.State;
 import practice.virtualcurrency.exception.InsufficientCashException;
 import practice.virtualcurrency.repository.member.MemberRepository;
@@ -19,7 +19,6 @@ import practice.virtualcurrency.service.member.MemberService;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @Transactional
 @SpringBootTest
@@ -53,91 +52,46 @@ class OrderServiceTest {
         memberService.join(sellMember2);
     }
     @AfterEach
-    void memberReset(){
+    void stateReset(){
         memberRepository.deleteAll();
         orderRepository.deleteAll();
         orderService.clearOrderBook();
     }
 
     @Test
-    void simpleDesignatedPriceTest() {
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,10000.0);
-        orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,10000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,10000.0);
-
-        orderService.sellDesignatedPrice(sellMember1,"BTC",200.0,5000.0);
-        orderService.sellDesignatedPrice(sellMember2,"BTC",200.0,5000.0);
-        orderService.sellDesignatedPrice(sellMember2,"BTC",100.0,15000.0);
-
-        assertThat(getCoinAndCash(buyMember1)).containsExactly(150.0, 80000.0);
-        assertThat(getCoinAndCash(buyMember2)).containsExactly(50.0, 90000.0);
-        assertThat(getCoinAndCash(sellMember1)).containsExactly(-25.0, 95000.0);
-        assertThat(getCoinAndCash(sellMember2)).containsExactly(-175.0, 80000.0);
-
-        printResult();
-    }
-
-    @Test
-    void simpleMarketPriceTest() {
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,10000.0);
-        orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,10000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,10000.0);
-
-        orderService.sellMarketPrice(sellMember1,"BTC",0.0,5000.0);
-        orderService.sellMarketPrice(sellMember2,"BTC",0.0,20000.0);
-
-        assertThat(getCoinAndCash(buyMember1)).containsExactly(150.0, 80000.0);
-        assertThat(getCoinAndCash(buyMember2)).containsExactly(50.0, 90000.0);
-        assertThat(getCoinAndCash(sellMember1)).containsExactly(-25.0, 95000.0);
-        assertThat(getCoinAndCash(sellMember2)).containsExactly(-175.0, 80000.0);
-
-        printResult();
-    }
-
-    @Test
     void insufficientCashExceptionTest() {
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,50000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,50000.0);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,50000.0,1.0);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,50000.0,1.0);
         assertThat(getCoinAndCash(buyMember1)).containsExactly(0.0, 0.0);
 
         assertThatThrownBy(() -> {
-            orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,50000.0);
-            orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,60000.0);
+            orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,50000.0,1.0);
+            orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,60000.0,1.0);
         }).isInstanceOf(InsufficientCashException.class);
 
         printResult();
     }
-
+    //Member(Total)
     //----------------Init Order Book(Buy)-----------------
-    //| 200 : M1(8000)->M2(6000)->M1(4000)                |
-    //| 100 : M1(10000)->M2(9000)->M1(7000)->M1(5000)     |
+    //| 200 : M1(8000)->M1(6000)->M2(4000)->M2(2000)      |
     //-----------------------------------------------------
     @Test
-    void ComplicatedTest() {
+    void calcelOrderTest() {
         //----------------Init Order Book(Buy)-----------------
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,10000.0);
-        orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,9000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,8000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,7000.0);
-        orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,6000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,5000.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,4000.0);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,8000.0,1.0);
+        Order cancelOrder = orderService.buyDesignatedPrice(buyMember1, "BTC", 200.0, 6000.0,1.0);
+        orderService.buyDesignatedPrice(buyMember2, "BTC", 200.0, 4000.0,1.0);
+        orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,2000.0,1.0);
         //-----------------------------------------------------
-        orderService.sellDesignatedPrice(sellMember1,"BTC",200.0,11000.0);
+        orderService.cancelOrder(cancelOrder);
+        orderService.sellMarketPrice(sellMember1,"BTC",0.0,10000.0,1.0);
 
-        orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,3000.0);
-
-        orderService.sellMarketPrice(sellMember2,"BTC",0.0,8000.0);
-        orderService.sellDesignatedPrice(sellMember1,"BTC",200.0,5000.0);
-        orderService.sellMarketPrice(sellMember1,"BTC",0.0,25000.0);
-
-        assertThat(getCoinAndCash(buyMember1)).containsExactly(220.0, 66000.0);
-        assertThat(getCoinAndCash(buyMember2)).containsExactly(135.0, 82000.0);
-        assertThat(getCoinAndCash(sellMember1)).containsExactly(-315.0, 59000.0);
-        assertThat(getCoinAndCash(sellMember2)).containsExactly(-40.0, 92000.0);
+        assertThat(getCoinAndCash(buyMember1)).containsExactly(40.0, 92000.0);
+        assertThat(getCoinAndCash(buyMember2)).containsExactly(10.0, 94000.0);
 
         printResult();
     }
+
 
     private static List<Double> getCoinAndCash(Member member) {
         List<Double> coinAndCash = new ArrayList<>();

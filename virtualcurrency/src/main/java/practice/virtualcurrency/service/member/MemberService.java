@@ -9,8 +9,6 @@ import java.util.Optional;
 public interface MemberService {
     public Member join(Member member);
     public Optional<Member> findMember(String username,String password);
-    public void addOrder(Member member, Order order);
-    public void removeOrder(Member member,Order order);
     public void addCoin(Member member, Coin coin);
     public void subCoin(Member member, Coin coin);
     //For Test
