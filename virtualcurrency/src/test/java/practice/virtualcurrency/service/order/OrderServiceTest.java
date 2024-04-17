@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import practice.virtualcurrency.domain.member.Member;
 import practice.virtualcurrency.domain.order.Order;
 import practice.virtualcurrency.domain.order.State;
+import practice.virtualcurrency.domain.order.Trade;
 import practice.virtualcurrency.exception.InsufficientCashException;
 import practice.virtualcurrency.repository.member.MemberRepository;
 import practice.virtualcurrency.repository.order.OrderRepository;
@@ -60,13 +61,13 @@ class OrderServiceTest {
 
     @Test
     void insufficientCashExceptionTest() {
-        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,50000.0,1.0);
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,50000.0,1.0);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",100.0,50000.0,0.0,1.0, Trade.PRCIE);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,50000.0,0.0,1.0, Trade.PRCIE);
         assertThat(getCoinAndCash(buyMember1)).containsExactly(0.0, 0.0);
 
         assertThatThrownBy(() -> {
-            orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,50000.0,1.0);
-            orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,60000.0,1.0);
+            orderService.buyDesignatedPrice(buyMember2,"BTC",100.0,50000.0,0.0,1.0, Trade.PRCIE);
+            orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,60000.0,0.0,1.0, Trade.PRCIE);
         }).isInstanceOf(InsufficientCashException.class);
 
         printResult();
@@ -78,13 +79,13 @@ class OrderServiceTest {
     @Test
     void calcelOrderTest() {
         //----------------Init Order Book(Buy)-----------------
-        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,8000.0,1.0);
-        Order cancelOrder = orderService.buyDesignatedPrice(buyMember1, "BTC", 200.0, 6000.0,1.0);
-        orderService.buyDesignatedPrice(buyMember2, "BTC", 200.0, 4000.0,1.0);
-        orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,2000.0,1.0);
+        orderService.buyDesignatedPrice(buyMember1,"BTC",200.0,8000.0,0.0,1.0, Trade.PRCIE);
+        Order cancelOrder = orderService.buyDesignatedPrice(buyMember1, "BTC", 200.0, 6000.0,0.0,1.0, Trade.PRCIE);
+        orderService.buyDesignatedPrice(buyMember2, "BTC", 200.0, 4000.0,0.0,1.0, Trade.PRCIE);
+        orderService.buyDesignatedPrice(buyMember2,"BTC",200.0,2000.0,0.0,1.0, Trade.PRCIE);
         //-----------------------------------------------------
         orderService.cancelOrder(cancelOrder);
-        orderService.sellMarketPrice(sellMember1,"BTC",0.0,10000.0,1.0);
+        orderService.sellMarketPrice(sellMember1,"BTC",0.0,10000.0,0.0,1.0, Trade.PRCIE);
 
         assertThat(getCoinAndCash(buyMember1)).containsExactly(40.0, 92000.0);
         assertThat(getCoinAndCash(buyMember2)).containsExactly(10.0, 94000.0);

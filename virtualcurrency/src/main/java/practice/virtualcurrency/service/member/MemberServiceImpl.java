@@ -33,6 +33,11 @@ public class MemberServiceImpl implements MemberService{
     }
 
     @Override
+    public Double getCoin(Member member, String coinName) {
+        return member.getWallet().get(coinName);
+    }
+
+    @Override
     public void addCoin(Member member, Coin coin) {
         Double totalQuantity = member.getWallet().get(coin.getName()) + coin.getQuantity();
         member.getWallet().put(coin.getName(), totalQuantity);
@@ -43,6 +48,11 @@ public class MemberServiceImpl implements MemberService{
     public void subCoin(Member member, Coin coin) {
         Double totalQuantity = member.getWallet().get(coin.getName()) - coin.getQuantity();
         member.getWallet().put(coin.getName(), totalQuantity);
+    }
+
+    @Override
+    public void resetCoin(Member member, String coinName) {
+        member.getWallet().put(coinName, 0.0);
     }
 
     //For Test

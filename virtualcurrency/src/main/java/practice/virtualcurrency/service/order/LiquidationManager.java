@@ -97,4 +97,10 @@ public class LiquidationManager {
         return order.getState() == State.BUY ? price - offset : price + offset;
     }
 
+    public void clear(){
+        coinPriceMap.clear();
+        coinPrevPriceMap.clear();
+        liquidationOrdersMap.clear();
+        initMap();
+    }
 }

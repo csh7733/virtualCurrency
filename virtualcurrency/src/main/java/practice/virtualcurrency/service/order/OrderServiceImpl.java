@@ -9,6 +9,7 @@ import practice.virtualcurrency.domain.coin.Coin;
 import practice.virtualcurrency.domain.member.Member;
 import practice.virtualcurrency.domain.order.Order;
 import practice.virtualcurrency.domain.order.State;
+import practice.virtualcurrency.domain.order.Trade;
 import practice.virtualcurrency.exception.InsufficientCashException;
 import practice.virtualcurrency.repository.order.OrderRepository;
 import practice.virtualcurrency.service.member.MemberService;
@@ -27,47 +28,75 @@ public class OrderServiceImpl implements OrderService{
     private Map<String, TreeMap<Double, List<Order>>> buyOrdersMap = new HashMap<>();
     private Map<String, TreeMap<Double, List<Order>>> sellOrdersMap = new HashMap<>();
 
+    // This parameter, Trade, determines the trading mode for the purchase:
+    // If trade is Quantity, the purchase is made by quantity
+    // If trade is price, the purchase is made at by price
     @Override
-    public Order buyDesignatedPrice(Member member,String coinName, Double price, Double cash, Double leverage) {
-        checkCashAndRemove(member,cash);
+    public Order buyDesignatedPrice(Member member,String coinName, Double price,
+                                    Double cash, Double quantity,Double leverage, Trade trade) {
+        if(trade == Trade.QUANTITY) {
+            cash = quantity*price/leverage;
+        }
+        takeCash(member,coinName,cash,State.BUY);
+
 
         TreeMap<Double, List<Order>> buyOrders = buyOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.reverseOrder()));
         TreeMap<Double, List<Order>> sellOrders = sellOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.naturalOrder()));
-        Double quantity;
 
         Optional<Double> minKey = Optional.ofNullable(sellOrders.isEmpty() ? null : sellOrders.firstKey());
 
         //If the designated price is greater than the market price
         //Buy at a market price instead of a designated price
         if(minKey.isPresent() && (price >= minKey.get())) {
-            cash = buyMarketPrice(member, coinName, price, cash,leverage);
-            // If cash is 0,stop to buy
-            if(cash == 0) return new Order();
+            if(trade == Trade.PRCIE) {
+                cash = buyMarketPrice(member, coinName, price, cash,quantity,leverage,trade);
+                // If cash is 0,stop to buy
+                if (cash == 0) return new Order();
+            }else if(trade == Trade.QUANTITY){
+                quantity = buyMarketPrice(member, coinName, price, cash,quantity,leverage,trade);
+                // If quantity is 0,stop to buy
+                if (quantity == 0) return new Order();
+            }
         }
-        Double totalCash = cash*leverage;
 
-        quantity = totalCash/price;
+        if(trade == Trade.PRCIE) {
+            Double totalCash = cash * leverage;
+            quantity = totalCash / price;
+        }
+
         return addToOrderBook(member, coinName, price, buyOrders, quantity,State.BUY,leverage);
     }
 
     //Behaviour similar to when buying
     @Override
-    public Order sellDesignatedPrice(Member member,String coinName, Double price, Double cash,Double leverage) {
-        checkCashAndRemove(member,cash);
+    public Order sellDesignatedPrice(Member member,String coinName, Double price,
+                                     Double cash,Double quantity,Double leverage, Trade trade) {
+        if(trade == Trade.QUANTITY) {
+            cash = quantity*price/leverage;
+        }
+        takeCash(member,coinName,cash,State.SELL);
 
         TreeMap<Double, List<Order>> buyOrders = buyOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.reverseOrder()));
         TreeMap<Double, List<Order>> sellOrders = sellOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.naturalOrder()));
-        Double quantity;
 
         Optional<Double> maxKey = Optional.ofNullable(buyOrders.isEmpty() ? null : buyOrders.firstKey());
 
         if(maxKey.isPresent() && (price <= maxKey.get())){
-            cash = sellMarketPrice(member, coinName, price, cash,leverage);
-            if(cash == 0) return new Order();
+            if(trade == Trade.PRCIE) {
+                cash = sellMarketPrice(member, coinName, price, cash,quantity,leverage,trade);
+                // If cash is 0,stop to buy
+                if (cash == 0) return new Order();
+            }else if(trade == Trade.QUANTITY){
+                quantity = sellMarketPrice(member, coinName, price, cash,quantity,leverage,trade);
+                // If quantity is 0,stop to buy
+                if (quantity == 0) return new Order();
+            }
         }
 
-        Double totalCash = cash*leverage;
-        quantity = totalCash/price;
+        if(trade == Trade.PRCIE) {
+            Double totalCash = cash * leverage;
+            quantity = totalCash / price;
+        }
         return addToOrderBook(member,coinName,price,sellOrders,quantity,State.SELL,leverage);
     }
 
@@ -75,30 +104,26 @@ public class OrderServiceImpl implements OrderService{
     // If Price is 0, the purchase is made at the current market price.
     // If Price is not 0, the purchase is made at the designated price.
     @Override
-    public Double buyMarketPrice(Member member,String coinName, Double price, Double cash,Double leverage) {
-        if(price ==0) checkCashAndRemove(member,cash);
-
-        TreeMap<Double, List<Order>> buyOrders = buyOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.reverseOrder()));
+    public Double buyMarketPrice(Member member,String coinName, Double price,
+                                 Double cash,Double quantity,Double leverage, Trade trade) {
+        if(trade == Trade.PRCIE && price ==0) takeCash(member,coinName,cash,State.BUY);
         TreeMap<Double, List<Order>> sellOrders = sellOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.naturalOrder()));
         Double totalCash = cash*leverage;
 
+        boolean isRemain = true;
         boolean escape = false;
 
-        while(totalCash > 0){
+        //if totalCash > 0 (When trade method is Price) || quantity > 0 (When trade method is quantity)
+        //isRemain is true
+        while(isRemain){
             Map.Entry<Double, List<Order>> firstEntry = sellOrders.firstEntry();
             Optional<List<Order>> optionalCurrentSellPriceList = Optional.ofNullable(firstEntry != null ? firstEntry.getValue() : null);
-            Double quantity;
 
             //If there is no coin for sale,there are two cases
             //In the case of purchase at the market price from the beginning(parameter Price value is 0),it will no longer buy it
             //In the case of purchase at the designated price from the beginning(parameter Price value is not 0),it will buy it at a designated price
             if(optionalCurrentSellPriceList.isEmpty()){
-                if(price == 0) {
-                    break;
-                }else{
-                    quantity = totalCash/price;
-                    addToOrderBook(member, coinName, price, buyOrders, quantity,State.BUY,leverage);
-                }
+                escape = true;
             }else{
                 List<Order> currentSellPriceList = optionalCurrentSellPriceList.get();
                 while(!currentSellPriceList.isEmpty()){
@@ -113,88 +138,120 @@ public class OrderServiceImpl implements OrderService{
                     }
 
                     Double currentOrderTotalPrice = currentOrder.getQuantity() * currentOrder.getPrice();
-                    if(totalCash >= currentOrderTotalPrice){
-                        trade(member,currentOrder.getMember(),currentOrder.getCoinName(),currentOrder.getPrice(),
-                                currentOrder.getQuantity(),leverage,currentOrder.getLeverage());
-                        currentSellPriceList.remove(0);
-                        totalCash -= currentOrderTotalPrice;
+                    if(trade == Trade.PRCIE) {
+                        if (totalCash >= currentOrderTotalPrice) {
+                            trade(member, currentOrder.getMember(), currentOrder.getCoinName(), currentOrder.getPrice(),
+                                    currentOrder.getQuantity(), leverage, currentOrder.getLeverage());
+                            currentSellPriceList.remove(0);
+                            totalCash -= currentOrderTotalPrice;
+                        } else {
+                            quantity = totalCash / currentOrder.getPrice();
+                            trade(member, currentOrder.getMember(), currentOrder.getCoinName(), currentOrder.getPrice(),
+                                    quantity, leverage, currentOrder.getLeverage());
+                            currentOrder.setQuantity(currentOrder.getQuantity() - quantity);
+                            totalCash = 0.0;
+                        }
+                        if(totalCash == 0) break;
                     }else{
-                        quantity = totalCash/currentOrder.getPrice();
-                        trade(member,currentOrder.getMember(),currentOrder.getCoinName(),currentOrder.getPrice(),
-                                quantity,leverage,currentOrder.getLeverage());
-                        currentOrder.setQuantity(currentOrder.getQuantity()-quantity);
-                        totalCash = 0.0;
+                        if (quantity >= currentOrder.getQuantity()) {
+                            trade(member, currentOrder.getMember(), currentOrder.getCoinName(), currentOrder.getPrice(),
+                                    currentOrder.getQuantity(), leverage, currentOrder.getLeverage());
+                            currentSellPriceList.remove(0);
+                            quantity -= currentOrder.getQuantity();
+                        } else {
+                            trade(member, currentOrder.getMember(), currentOrder.getCoinName(), currentOrder.getPrice(),
+                                    quantity, leverage, currentOrder.getLeverage());
+                            currentOrder.setQuantity(currentOrder.getQuantity() - quantity);
+                            quantity = 0.0;
+                        }
+                        if(quantity == 0) break;
                     }
-                    if(totalCash == 0) break;
                 }
                 if(currentSellPriceList.isEmpty()) sellOrders.remove(firstEntry.getKey());
+                if((trade == Trade.PRCIE && totalCash == 0) || (trade == Trade.QUANTITY && quantity == 0)) isRemain = false;
             }
-            //log.info("totalCash = {}",totalCash);
             if(escape) break;
         }
-        cash = totalCash/leverage;
-        if(price == 0) addCash(member,cash);
-        //log.info("Buy Market Finsih!");
-        return cash;
+        if(trade == Trade.PRCIE){
+            cash = totalCash/leverage;
+            if(price == 0) addCash(member,cash);
+            return cash;
+        }else{
+            return quantity;
+        }
     }
 
     //Behaviour similar to when buying
     @Override
-    public Double sellMarketPrice(Member member,String coinName, Double price, Double cash,Double leverage) {
-        if(price ==0) checkCashAndRemove(member,cash);
+    public Double sellMarketPrice(Member member,String coinName, Double price,
+                                  Double cash,Double quantity,Double leverage, Trade trade) {
+        if(trade == Trade.PRCIE && price ==0) takeCash(member,coinName,cash,State.SELL);
 
         TreeMap<Double, List<Order>> buyOrders = buyOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.reverseOrder()));
-        TreeMap<Double, List<Order>> sellOrders = sellOrdersMap.computeIfAbsent(coinName, k -> new TreeMap<>(Comparator.naturalOrder()));
         Double totalCash = cash*leverage;
 
+        boolean isRemain = true;
         boolean escape = false;
 
-        while(totalCash > 0){
+        while(isRemain){
             Map.Entry<Double, List<Order>> firstEntry = buyOrders.firstEntry();
             Optional<List<Order>> optionalCurrentBuyPriceList = Optional.ofNullable(firstEntry != null ? firstEntry.getValue() : null);
-            Double quantity;
 
             if(optionalCurrentBuyPriceList.isEmpty()){
-                if(price == 0) {
-                    break;
-                }else{
-                    quantity = totalCash/price;
-                    addToOrderBook(member,coinName,price,sellOrders,quantity,State.SELL,leverage);
-                }
+                escape = true;
             }else{
                 List<Order> currentBuyPriceList = optionalCurrentBuyPriceList.get();
                 while(!currentBuyPriceList.isEmpty()){
                     Order currentOrder = currentBuyPriceList.get(0);
                     Double currentOrderPrice = currentOrder.getPrice();
+
                     if(price > currentOrderPrice) {
                         escape = true;
                         break;
                     }
 
                     Double currentOrderTotalPrice = currentOrder.getQuantity() * currentOrder.getPrice();
-                    if(totalCash >= currentOrderTotalPrice){
-                        trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
-                                currentOrder.getQuantity(),currentOrder.getLeverage(),leverage);
-                        currentBuyPriceList.remove(0);
-                        totalCash -= currentOrderTotalPrice;
+                    if(trade == Trade.PRCIE) {
+                        if (totalCash >= currentOrderTotalPrice) {
+                            trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
+                                    currentOrder.getQuantity(),currentOrder.getLeverage(),leverage);
+                            currentBuyPriceList.remove(0);
+                            totalCash -= currentOrderTotalPrice;
+                        } else {
+                            quantity = totalCash/currentOrder.getPrice();
+                            trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
+                                    quantity,currentOrder.getLeverage(),leverage);
+                            currentOrder.setQuantity(currentOrder.getQuantity()-quantity);
+                            totalCash = 0.0;
+                        }
+                        if(totalCash == 0) break;
                     }else{
-                        quantity = totalCash/currentOrder.getPrice();
-                        trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
-                                quantity,currentOrder.getLeverage(),leverage);
-                        currentOrder.setQuantity(currentOrder.getQuantity()-quantity);
-                        totalCash = 0.0;
+                        if (quantity >= currentOrder.getQuantity()) {
+                            trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
+                                    currentOrder.getQuantity(),currentOrder.getLeverage(),leverage);
+                            currentBuyPriceList.remove(0);
+                            quantity -= currentOrder.getQuantity();
+                        } else {
+                            trade(currentOrder.getMember(),member,currentOrder.getCoinName(),currentOrder.getPrice(),
+                                    quantity,currentOrder.getLeverage(),leverage);
+                            currentOrder.setQuantity(currentOrder.getQuantity()-quantity);
+                            quantity = 0.0;
+                        }
+                        if(quantity == 0) break;
                     }
-                    if(totalCash == 0) break;
                 }
                 if(currentBuyPriceList.isEmpty()) buyOrders.remove(firstEntry.getKey());
+                if((trade == Trade.PRCIE && totalCash == 0) || (trade == Trade.QUANTITY && quantity == 0)) isRemain = false;
             }
-            //log.info("totalCash = {}",totalCash);
             if(escape) break;
         }
-        cash = totalCash/leverage;
-        if(price == 0) addCash(member,cash);
-        //log.info("Sell Market Finsih!");
-        return cash;
+        if(trade == Trade.PRCIE){
+            cash = totalCash/leverage;
+            if(price == 0) addCash(member,cash);
+            return cash;
+        }else{
+            return quantity;
+        }
     }
 
     @Override
@@ -212,8 +269,9 @@ public class OrderServiceImpl implements OrderService{
         for (Order order : orders) {
             //log.info("liquidation order = {}!",order.toString());
             removeOrder(order.getMember(),order.getCoinName());
+            memberService.resetCoin(order.getMember(),order.getCoinName());
             /**
-             * ToDo Trade Market price by Opposite Postion(Wallet)
+             * ToDo Trade Market price by Opposite Postion
              */
         }
     }
@@ -225,13 +283,28 @@ public class OrderServiceImpl implements OrderService{
 
         addOrderAndSetLiquidation(buyMember, sellMember, coinName, price, buyMemberOrder, sellMemberOrder);
 
+        //If the member's position is different from the neworder's position
+        //That means handing over what member originally have to the opposite position
+        if(hasDifferentPosition(buyMember,coinName,State.BUY)) {
+            Double currentPositionPrice = getOrderWithCoinName(buyMember, coinName).getPrice();
+            Double priceOffset = currentPositionPrice - price;
+            priceOffset = priceOffset > 0 ? currentPositionPrice + priceOffset : priceOffset;
+            addCash(buyMember,priceOffset*quantity);
+        }
+        if(hasDifferentPosition(sellMember,coinName,State.SELL)) {
+            Double currentPositionPrice = getOrderWithCoinName(sellMember, coinName).getPrice();
+            Double priceOffset = price-currentPositionPrice;
+            priceOffset = priceOffset > 0 ? currentPositionPrice + priceOffset : priceOffset;
+            addCash(sellMember,priceOffset*quantity);
+        }
+
         memberService.addCoin(buyMember,new Coin(coinName,quantity));
         memberService.subCoin(sellMember,new Coin(coinName,quantity));
 
 
-        //log.info("trade success!");
-        //log.info("buy order ={}",buyMemberOrder);
-        //log.info("sell order ={}",sellMemberOrder);
+        log.info("trade success!");
+        log.info("buy order ={}",buyMemberOrder);
+        log.info("sell order ={}",sellMemberOrder);
     }
 
     private void addOrderAndSetLiquidation(Member buyMember, Member sellMember, String coinName, Double price, Order buyMemberOrder, Order sellMemberOrder) {
@@ -253,21 +326,34 @@ public class OrderServiceImpl implements OrderService{
     public Order addOrder(Member member,Order newOrder) {
         String coinName = newOrder.getCoinName();
         Order prevOrder = getOrderWithCoinName(member, coinName);
+        State state;
+        Double prevLeverageCash,prevCash,newLeverageCash,newCash,totalLeverageCash,
+                totalCash,quantity,price,leverage;
 
-        Double prevLeverageCash = prevOrder.getPrice()*prevOrder.getQuantity();
-        Double prevCash = prevLeverageCash/prevOrder.getLeverage();
-        Double newLeverageCash = newOrder.getPrice()* newOrder.getQuantity();
-        Double newCash = newLeverageCash/newOrder.getLeverage();
-        Double totalLeverageCash = prevLeverageCash + newLeverageCash;
-        Double totalCash = prevCash + newCash;
-        Double quantity = prevOrder.getQuantity() + newOrder.getQuantity();
-        Double price = totalLeverageCash/quantity;
-        Double leverage = totalLeverageCash/totalCash;
-
+        //If the member's position is different from the neworder's position
+        //Turn the newOrder values into negative numbers for calculation
+        //Result is always positive(Because original position values > newOrder values)
+        if(hasDifferentPosition(member,coinName,newOrder.getState())){
+            state = newOrder.getState().equals(State.BUY) ? State.SELL : State.BUY;
+            quantity = prevOrder.getQuantity() - newOrder.getQuantity();
+            price = prevOrder.getPrice();
+            leverage = prevOrder.getLeverage();
+        }else{
+            state = newOrder.getState();
+            prevLeverageCash = prevOrder.getPrice()*prevOrder.getQuantity();
+            prevCash = prevLeverageCash/prevOrder.getLeverage();
+            newLeverageCash = newOrder.getPrice()* newOrder.getQuantity();
+            newCash = newLeverageCash/newOrder.getLeverage();
+            totalLeverageCash = prevLeverageCash + newLeverageCash;
+            totalCash = prevCash + newCash;
+            quantity = prevOrder.getQuantity() + newOrder.getQuantity();
+            price = totalLeverageCash/quantity;
+            leverage = totalLeverageCash/totalCash;
+        }
         prevOrder.setMember(member);
         prevOrder.setPrice(price);
         prevOrder.setQuantity(quantity);
-        prevOrder.setState(newOrder.getState());
+        prevOrder.setState(state);
         prevOrder.setLeverage(leverage);
         return prevOrder;
     }
@@ -297,9 +383,25 @@ public class OrderServiceImpl implements OrderService{
         }
     }
 
-    private void checkCashAndRemove(Member member, Double cash){
+    private void takeCash(Member member,String coinName,Double cash,State state){
+        //If the member's position is different from the neworder's position
+        //Don't take out the money and return
+        if (hasDifferentPosition(member, coinName, state)) return;
+
         if(member.getWallet().get("KRW") < cash) throw new InsufficientCashException();
         memberService.subCoin(member,new Coin("KRW",cash));
+    }
+
+    private boolean hasDifferentPosition(Member member, String coinName, State state) {
+        if(memberService.getCoin(member, coinName) > 0 && state.equals(State.SELL)) {
+            log.info("isDifferent! coin ={},state ={}",memberService.getCoin(member,coinName),state);
+            return true;
+        }
+        if(memberService.getCoin(member, coinName) < 0 && state.equals(State.BUY)) {
+            log.info("isDifferent! coin ={},state ={}",memberService.getCoin(member,coinName),state);
+            return true;
+        }
+        return false;
     }
 
     private void addCash(Member member, Double cash){
@@ -344,5 +446,6 @@ public class OrderServiceImpl implements OrderService{
     public void clearOrderBook(){
         buyOrdersMap.clear();
         sellOrdersMap.clear();
+        liquidationManager.clear();
     }
 }

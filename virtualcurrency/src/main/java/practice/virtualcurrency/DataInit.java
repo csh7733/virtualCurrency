@@ -22,10 +22,11 @@ public class DataInit {
     public void initData() {
         log.info("Local DataInit Start");
 
-        Optional<Member> admin = memberService.findMember("admin", "admin123");
+        Optional<Member> adminOptional = memberService.findMember("admin", "admin123");
 
-        if(admin.isEmpty()){
-            memberService.join(new Member("admin","admin123"));
+        if(adminOptional.isEmpty()){
+            Member admin = memberService.join(new Member("admin", "admin123"));
+
         }
 
 
