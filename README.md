@@ -1,4 +1,6 @@
 # Project Name: Virtual Currency(가상화폐 거래소)
+![image](https://github.com/csh7733/virtualCurrency/assets/149491102/ae9d283c-5a02-443e-ac8b-f8df95b889ca)
+
 
 ## 프로젝트 소개
 이 프로젝트는 가상화폐 거래소 프로젝트입니다. 본 거래소는 주로 마진 거래(선물 거래) 기능을 중심으로 구현되어 있으며, 
@@ -23,7 +25,7 @@
 - **Thymeleaf**: 초기 페이지 로딩과 서버 사이드 렌더링 부분 담당
 
 ### 프론트엔드
-- **React**: 추후 반영
+- **React**:
 - **Bootstrap**: 
 
 ### 데이터베이스
