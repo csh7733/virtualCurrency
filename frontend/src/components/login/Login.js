@@ -1,26 +1,26 @@
-import * as React from 'react';
-import Avatar from '@mui/material/Avatar';
+import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
 import Link from '@mui/material/Link';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
 import Copyright from '../Copyright';
 import darkTheme from '../Theme';
 import logo from '../../assets/logo.png';
+import apiClient from '../../apiClient';
 
 const defaultTheme = darkTheme;
 
 export default function Login() {
   const navigate = useNavigate(); 
+  const [error, setError] = useState(''); 
   const handleSubmit = async e => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -32,11 +32,17 @@ export default function Login() {
       });
       const jwt = response.data;
       localStorage.setItem('token', jwt);
-      const decoded = jwtDecode(jwt);
-      console.log(decoded.userName); // 이메일 클레임 출력
-      navigate('/chat');
+      navigate('/');
     } catch (error) {
-      console.error('로그인 실패:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          setError('Invalid email or password');
+        } else {
+          setError('An unexpected error occurred');
+        }
+      } else {
+        setError('Network error');
+      }
     }
   };
 
@@ -69,7 +75,7 @@ export default function Login() {
               autoComplete="email"
               autoFocus
               sx={{ 
-                input: { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' }, // 배경색 변경
+                input: { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                 '& label': { color: 'gray' },
                 '& label.Mui-focused': { color: 'white' },
                 '& .MuiOutlinedInput-root': {
@@ -89,7 +95,7 @@ export default function Login() {
               id="password"
               autoComplete="current-password"
               sx={{ 
-                input: { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' }, // 배경색 변경
+                input: { color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                 '& label': { color: 'gray' },
                 '& label.Mui-focused': { color: 'white' },
                 '& .MuiOutlinedInput-root': {
@@ -99,6 +105,11 @@ export default function Login() {
                 },
               }}
             />
+            {error && (
+              <Typography variant="body2" color="error" align="center" sx={{ mt: 2 }}>
+                {error}
+              </Typography>
+            )}
             <Button
               type="submit"
               fullWidth

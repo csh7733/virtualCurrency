@@ -17,7 +17,7 @@ const Chart = ({ coinName }) => {
   useEffect(() => {
     chart.current = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: 500,
+      height: 550,
       layout: {
         backgroundColor: "#121212",
         textColor: "rgba(255, 255, 255, 0.9)" 
@@ -48,8 +48,8 @@ const Chart = ({ coinName }) => {
       downColor: "#ff4976",
       borderDownColor: "#ff4976",
       borderUpColor: "#4bffb5",
-      wickDownColor: "#838ca1",
-      wickUpColor: "#838ca1"
+      wickDownColor: "#ff4976",
+      wickUpColor: "#4bffb5" 
     });
     candleSeries.setData(chartData[coinName]);
     candleSeriesRef.current = candleSeries; 

@@ -59,7 +59,7 @@ import { useMarketData } from '../context/MarketData';
   
   function simulatePriceUpdate(coinName) {
     let coin = coins[coinName];
-    coin.currentTime += 1;
+    coin.currentTime += 1;  
     let priceChange = (Math.random() * (coin.high - coin.low) - (coin.high - coin.low) / 2) * 0.3;
     coin.currentPrice += priceChange;
   
