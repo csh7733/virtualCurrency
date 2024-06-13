@@ -1,9 +1,10 @@
 # Project Name: Virtual Currency(가상화폐 거래소)
-![image](https://github.com/csh7733/virtualCurrency/assets/149491102/ae9d283c-5a02-443e-ac8b-f8df95b889ca)
+![image](https://github.com/csh7733/virtualCurrency/assets/149491102/351ceb3c-80cf-450f-88be-6233cebb651e)
+
 
 
 ## 프로젝트 소개
-이 프로젝트는 가상화폐 거래소 프로젝트입니다. 본 거래소는 주로 마진 거래(선물 거래) 기능을 중심으로 구현되어 있으며, 
+이 프로젝트는 가상화폐 거래소 프로젝트입니다. 본 거래소는 마진 거래(선물 거래) 기능을 중심으로 구현되어 있으며, 
 사용자는 다양한 가상화폐에 대해 레버리지를 적용한 마진거래를 실시할 수 있습니다. 거래소의 코인 가격은 내부 거래소의 거래 외에도
 외부 실시간 데이터에 반응하여 업데이트되므로, 사용자는 시장의 변화에 빠르게 대응하면서 트레이딩 전략을 시험해 볼 수 있습니다.
 
@@ -22,14 +23,13 @@
 - **Spring Data JPA**
 - **Spring Web**
 - **Spring WebSocket**
-- **Thymeleaf**: 초기 페이지 로딩과 서버 사이드 렌더링 부분 담당
 
 ### 프론트엔드
 - **React**:
 - **Bootstrap**: 
 
 ### 데이터베이스
-- **H2 Database**: 추후 다른 데이터베이스로 옮길 예정
+- **H2 Database**: 추후 mysql로 옮길 예정
 
 ### 개발 도구
 - **Gradle**
