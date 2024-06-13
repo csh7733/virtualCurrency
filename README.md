@@ -1,8 +1,3 @@
-# Project Name: Virtual Currency(가상화폐 거래소)
-![image](https://github.com/csh7733/virtualCurrency/assets/149491102/351ceb3c-80cf-450f-88be-6233cebb651e)
-
-
-
 ## 프로젝트 소개
 이 프로젝트는 가상화폐 거래소 프로젝트입니다. 본 거래소는 마진 거래(선물 거래) 기능을 중심으로 구현되어 있으며, 
 사용자는 다양한 가상화폐에 대해 레버리지를 적용한 마진거래를 실시할 수 있습니다. 거래소의 코인 가격은 내부 거래소의 거래 외에도
@@ -18,15 +13,12 @@
 ## 기술 스택
 
 ### 백엔드
-- **Spring Boot (3.2.4)**
-- **Hibernate & JPA**
+- **Spring Boot**
 - **Spring Data JPA**
-- **Spring Web**
 - **Spring WebSocket**
 
 ### 프론트엔드
 - **React**:
-- **Bootstrap**: 
 
 ### 데이터베이스
 - **H2 Database**: 추후 mysql로 옮길 예정
@@ -35,12 +27,17 @@
 - **Gradle**
 - **JUnit**
 
-
 ## 설치 방법
 ### 필요 조건
 - Java 17 이상
-- 
+
 ### 설치 과정
 1. 소스 코드 클론:
    ```bash
-   git clone https://github.com/yourusername/virtual-currency-exchange.git
+   git clone https://github.com/csh7733/virtualCurrency.git
+
+## 스크린샷
+<img src="https://github.com/csh7733/virtualCurrency/assets/149491102/cf03f89c-d6d5-4032-9b37-65f3448c66bc" width="500"/>
+<img src="https://github.com/csh7733/virtualCurrency/assets/149491102/8c6857b5-e569-470c-bb05-807e8160aff8" width="500"/>
+<img src="https://github.com/csh7733/virtualCurrency/assets/149491102/b83a1c19-6f99-4c35-803b-83ff370be2e2" width="500"/>
+<img src="https://github.com/csh7733/virtualCurrency/assets/149491102/08ada0be-7859-4382-952e-bed076771404" width="500"/>
