@@ -1,20 +1,22 @@
 package com.practice.virtualcurrency.service.order;
 
 import com.practice.virtualcurrency.domain.member.Member;
-import com.practice.virtualcurrency.domain.order.Order;
-import com.practice.virtualcurrency.domain.order.OrderBook;
-import com.practice.virtualcurrency.domain.order.State;
-import com.practice.virtualcurrency.domain.order.Trade;
+import com.practice.virtualcurrency.domain.order.*;
 import com.practice.virtualcurrency.dto.command.OrderCommand;
 import com.practice.virtualcurrency.dto.command.TradeCommand;
 import com.practice.virtualcurrency.exception.InsufficientCashException;
 import com.practice.virtualcurrency.repository.order.OrderRepository;
 import com.practice.virtualcurrency.service.member.MemberService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -27,10 +29,17 @@ public class OrderServiceImpl implements OrderService{
     private final OrderRepository orderRepository;
     private final MemberService memberService;
     private final OrderBook orderBook;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     public Order buyDesignatedPrice(OrderCommand orderCommand) {
-        Member member = orderCommand.getMember();
+        String username = orderCommand.getUsername();
+        Optional<Member> memberByUsername = memberService.findMemberByUsername(username);
+        if(memberByUsername.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+        Member member = memberByUsername.get();
         String coinName = orderCommand.getCoinName();
         Double price = orderCommand.getPrice();
         Double cash = orderCommand.getCash();
@@ -55,6 +64,7 @@ public class OrderServiceImpl implements OrderService{
             }
 
             Order order = Order.builder()
+                    .time(getCurrentTime())
                     .member(member)
                     .coinName(coinName)
                     .price(price)
@@ -82,6 +92,7 @@ public class OrderServiceImpl implements OrderService{
             quantity = totalCash / price;
 
             Order order = Order.builder()
+                    .time(getCurrentTime())
                     .member(member)
                     .coinName(coinName)
                     .price(price)
@@ -99,7 +110,12 @@ public class OrderServiceImpl implements OrderService{
     //Behaviour similar to when buying
     @Override
     public Order sellDesignatedPrice(OrderCommand orderCommand) {
-        Member member = orderCommand.getMember();
+        String username = orderCommand.getUsername();
+        Optional<Member> memberByUsername = memberService.findMemberByUsername(username);
+        if(memberByUsername.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+        Member member = memberByUsername.get();
         String coinName = orderCommand.getCoinName();
         Double price = orderCommand.getPrice();
         Double cash = orderCommand.getCash();
@@ -120,6 +136,7 @@ public class OrderServiceImpl implements OrderService{
             }
 
             Order order = Order.builder()
+                    .time(getCurrentTime())
                     .member(member)
                     .coinName(coinName)
                     .price(price)
@@ -144,6 +161,7 @@ public class OrderServiceImpl implements OrderService{
             quantity = totalCash / price;
 
             Order order = Order.builder()
+                    .time(getCurrentTime())
                     .member(member)
                     .coinName(coinName)
                     .price(price)
@@ -163,7 +181,13 @@ public class OrderServiceImpl implements OrderService{
     // If Price is not 0, the purchase is made at the designated price.
     @Override
     public Double buyMarketPrice(OrderCommand orderCommand) {
-        Member member = orderCommand.getMember();
+        String username = orderCommand.getUsername();
+        Optional<Member> memberByUsername = memberService.findMemberByUsername(username);
+        if(memberByUsername.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+        Member member = memberByUsername.get();
+        OrderType orderType = orderCommand.getOrderType();
         String coinName = orderCommand.getCoinName();
         Double price = orderCommand.getPrice();
         Double cash = orderCommand.getCash();
@@ -198,8 +222,10 @@ public class OrderServiceImpl implements OrderService{
 
                         if (quantity >= currentOrder.getQuantity()) {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(member)
-                                    .sellMember(currentOrder.getMember())
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(username)
+                                    .sellMemberUsername(currentOrder.getMember().getUsername())
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(currentOrder.getQuantity())
@@ -212,8 +238,10 @@ public class OrderServiceImpl implements OrderService{
                             quantity -= currentOrder.getQuantity();
                         } else {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(member)
-                                    .sellMember(currentOrder.getMember())
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(username)
+                                    .sellMemberUsername(currentOrder.getMember().getUsername())
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(quantity)
@@ -265,8 +293,10 @@ public class OrderServiceImpl implements OrderService{
 
                         if (totalCash >= currentOrderTotalPrice) {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(member)
-                                    .sellMember(currentOrder.getMember())
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(username)
+                                    .sellMemberUsername(currentOrder.getMember().getUsername())
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(currentOrder.getQuantity())
@@ -281,8 +311,10 @@ public class OrderServiceImpl implements OrderService{
                             quantity = totalCash / currentOrder.getPrice();
 
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(member)
-                                    .sellMember(currentOrder.getMember())
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(username)
+                                    .sellMemberUsername(currentOrder.getMember().getUsername())
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(quantity)
@@ -302,6 +334,7 @@ public class OrderServiceImpl implements OrderService{
                 if(escape) break;
             }
             cash = totalCash/leverage;
+            log.info("cash = {}",cash);
             if(price == 0) addCash(member,cash);
             return cash;
         }
@@ -309,7 +342,13 @@ public class OrderServiceImpl implements OrderService{
 
     @Override
     public Double sellMarketPrice(OrderCommand orderCommand) {
-        Member member = orderCommand.getMember();
+        String username = orderCommand.getUsername();
+        Optional<Member> memberByUsername = memberService.findMemberByUsername(username);
+        if(memberByUsername.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+        Member member = memberByUsername.get();
+        OrderType orderType = orderCommand.getOrderType();
         String coinName = orderCommand.getCoinName();
         Double price = orderCommand.getPrice();
         Double cash = orderCommand.getCash();
@@ -342,8 +381,10 @@ public class OrderServiceImpl implements OrderService{
 
                         if (quantity >= currentOrder.getQuantity()) {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(currentOrder.getMember())
-                                    .sellMember(member)
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(currentOrder.getMember().getUsername())
+                                    .sellMemberUsername(username)
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(currentOrder.getQuantity())
@@ -356,8 +397,10 @@ public class OrderServiceImpl implements OrderService{
                             quantity -= currentOrder.getQuantity();
                         } else {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(currentOrder.getMember())
-                                    .sellMember(member)
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(currentOrder.getMember().getUsername())
+                                    .sellMemberUsername(username)
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(quantity)
@@ -407,8 +450,10 @@ public class OrderServiceImpl implements OrderService{
 
                         if (totalCash >= currentOrderTotalPrice) {
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(currentOrder.getMember())
-                                    .sellMember(member)
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(currentOrder.getMember().getUsername())
+                                    .sellMemberUsername(username)
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(currentOrder.getQuantity())
@@ -423,8 +468,10 @@ public class OrderServiceImpl implements OrderService{
                             quantity = totalCash / currentOrder.getPrice();
 
                             TradeCommand tradeCommand = TradeCommand.builder()
-                                    .buyMember(currentOrder.getMember())
-                                    .sellMember(member)
+                                    .time(getCurrentTime())
+                                    .orderType(orderType)
+                                    .buyMemberUsername(currentOrder.getMember().getUsername())
+                                    .sellMemberUsername(username)
                                     .coinName(coinName)
                                     .price(currentOrder.getPrice())
                                     .quantity(quantity)
@@ -486,15 +533,22 @@ public class OrderServiceImpl implements OrderService{
     }
 
     private void trade(TradeCommand tradeCommand) {
-        Member buyMember = tradeCommand.getBuyMember();
-        Member sellMember = tradeCommand.getSellMember();
+        String time = tradeCommand.getTime();
+        OrderType orderType = tradeCommand.getOrderType();
         String coinName = tradeCommand.getCoinName();
         Double price = tradeCommand.getPrice();
         Double quantity = tradeCommand.getQuantity();
         Double buyMemberLeverage = tradeCommand.getBuyMemberLeverage();
         Double sellMemberLeverage = tradeCommand.getSellMemberLeverage();
 
+        String buyMemberUsername = tradeCommand.getBuyMemberUsername();
+        String sellMemberUsername = tradeCommand.getSellMemberUsername();
+        Member buyMember = memberService.findMemberByUsernameWithOrders(buyMemberUsername).get();
+        Member sellMember = memberService.findMemberByUsernameWithOrders(sellMemberUsername).get();
+
         Order buyMemberOrder = Order.builder()
+                .orderType(orderType)
+                .time(time)
                 .member(buyMember)
                 .coinName(coinName)
                 .price(price)
@@ -504,6 +558,8 @@ public class OrderServiceImpl implements OrderService{
                 .build();
 
         Order sellMemberOrder = Order.builder()
+                .orderType(orderType)
+                .time(time)
                 .member(sellMember)
                 .coinName(coinName)
                 .price(price)
@@ -512,6 +568,27 @@ public class OrderServiceImpl implements OrderService{
                 .leverage(sellMemberLeverage)
                 .build();
 
+//        orderRepository.save(sellMemberOrder);
+//        orderRepository.save(buyMemberOrder);
+
+        //If the member's position is different from the neworder's position
+        //That means handing over what member originally have to the opposite position
+        if(hasDifferentPosition(buyMember,coinName,State.BUY)) {
+            Double currentPositionPrice = getCurrentCoinPosition(buyMember, coinName).getPrice();
+            Double priceOffset = currentPositionPrice - price;
+            priceOffset = priceOffset > 0 ? currentPositionPrice + priceOffset : priceOffset;
+            addCash(buyMember,priceOffset*quantity);
+        }
+        if(hasDifferentPosition(sellMember,coinName,State.SELL)) {
+            Double currentPositionPrice = getCurrentCoinPosition(sellMember, coinName).getPrice();
+            Double priceOffset = price-currentPositionPrice;
+            priceOffset = priceOffset > 0 ? currentPositionPrice + priceOffset : priceOffset;
+            addCash(sellMember,priceOffset*quantity);
+        }
+
+        addOrderToMember(buyMember, buyMemberOrder);
+        addOrderToMember(sellMember,sellMemberOrder);
+
         memberService.addCoin(buyMember,coinName,quantity);
         memberService.subCoin(sellMember,coinName,quantity);
 
@@ -519,5 +596,93 @@ public class OrderServiceImpl implements OrderService{
         log.info("buy order ={}",buyMemberOrder);
         log.info("sell order ={}",sellMemberOrder);
     }
+
+    private void addOrderToMember(Member member, Order memberOrder) {
+        member.getOrders().add(memberOrder);
+    }
+
+    private boolean hasDifferentPosition(Member member, String coinName, State state) {
+        if(memberService.getCoin(member, coinName) > 0 && state.equals(State.SELL)) {
+            log.info("isDifferent! coin ={},state ={}",memberService.getCoin(member,coinName),state);
+            return true;
+        }
+        if(memberService.getCoin(member, coinName) < 0 && state.equals(State.BUY)) {
+            log.info("isDifferent! coin ={},state ={}",memberService.getCoin(member,coinName),state);
+            return true;
+        }
+        return false;
+    }
+
+    private Order getCurrentCoinPosition(Member member, String coinName) {
+        List<Order> currentCoinOrders = member.getOrders().stream()
+                .filter(order -> order.getCoinName().equals(coinName))
+                .toList();
+
+        double totalCash = 0.0;
+        double totalQuantity = 0.0;
+
+        for (Order order : currentCoinOrders) {
+            double currentCash = order.getPrice() * order.getQuantity();
+            if (order.getState().equals(State.BUY)) {
+                totalQuantity += order.getQuantity();
+                totalCash += currentCash;
+            } else {
+                totalQuantity -= order.getQuantity();
+                totalCash -= currentCash;
+            }
+        }
+
+        State finalState = totalCash > 0 ? State.BUY : State.SELL;
+        double averagePrice = Math.abs(totalCash) / Math.abs(totalQuantity);
+        double finalQuantity = Math.abs(totalQuantity);
+
+        return Order.builder()
+                .price(averagePrice)
+                .quantity(finalQuantity)
+                .state(finalState)
+                .build();
+    }
+
+    private String getCurrentTime() {
+        LocalDateTime now = LocalDateTime.now();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        return now.format(formatter);
+    }
+
+    @Override
+    public void test(Member member1,String username){
+        //memberService.findMemberByUsername(username);
+        log.info("EntityManager in test: {}", System.identityHashCode(entityManager));
+        boolean isActualTransactionActive = TransactionSynchronizationManager.isActualTransactionActive();
+        String transactionName = TransactionSynchronizationManager.getCurrentTransactionName();
+
+        log.info("Is actual transaction active: {}", isActualTransactionActive);
+        log.info("Current transaction name: {}", transactionName);
+        boolean isContained = entityManager.contains(member1);
+        if (isContained) {
+            System.out.println("Member is in the persistence context.");
+        } else {
+            System.out.println("Member is not in the persistence context.");
+        }
+        member1.getOrders().add(new Order());
+    }
+
+    @Override
+    public Member test2(){
+        Member member1 = Member.builder()
+                .username("temp")
+                .build();
+        log.info("EntityManager in test2: {}", System.identityHashCode(entityManager));
+        boolean isActualTransactionActive = TransactionSynchronizationManager.isActualTransactionActive();
+        String transactionName = TransactionSynchronizationManager.getCurrentTransactionName();
+
+        log.info("Is actual transaction active: {}", isActualTransactionActive);
+        log.info("Current transaction name: {}", transactionName);
+        return memberService.join(member1);
+    }
+
+
 
 }

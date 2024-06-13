@@ -1,16 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import axios from 'axios';
+import apiClient from '../../apiClient';
 
 const CustomTableContainer = styled(TableContainer)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
-
-const ordersData = [
-  { time: '2024-04-14 07:24:18', symbol: 'BTC', orderType: 'Liquidation', position: 'Long', size: '3.82542 BTC', price: '5.9681378', total: '2,054.8299 USDT'},
-  { time: '2024-04-14 06:48:53', symbol: 'CSH', orderType: 'Market', position: 'Short', size: '1,997.51332 CSH', price: '5.80167464', total: '1,997.5166 USDT'},
-  // Add more orders as needed
-];
 
 const OrderRow = ({ order }) => (
   <TableRow>
@@ -26,10 +22,33 @@ const OrderRow = ({ order }) => (
 
 const Orders = () => {
   const [value, setValue] = useState(0);
+  const [ordersData, setOrdersData] = useState([]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await apiClient.get('member/orders');
+        const orders = response.data.map(order => ({
+          time: order.time,
+          symbol: order.coinName,
+          orderType: order.orderType,
+          position: order.state === 'BUY' ? 'Long' : 'Short',
+          size: `${order.quantity.toFixed(2)}. ${order.coinName}`,
+          price: order.price.toFixed(2),
+          total: (order.price * order.quantity).toFixed(2),
+        }));
+        setOrdersData(orders);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      }
+    };
+
+    fetchOrders();
+  }, []);
 
   return (
     <Container>

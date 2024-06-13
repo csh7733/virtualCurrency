@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container, Typography, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { styled } from '@mui/material/styles';
@@ -8,15 +8,15 @@ import xrpIcon from '../../assets/xrp.png';
 import cshIcon from '../../assets/csh.png';
 import usdtIcon from '../../assets/usdt.png';
 import Positions from '../home/Positions';
+import apiClient from '../../apiClient';
 
 const coinIcons = {
-    BTC: btcIcon,
-    ETH: ethIcon,
-    XRP: xrpIcon,
-    CSH: cshIcon,
-    USDT: usdtIcon
-  };
-  
+  BTC: btcIcon,
+  ETH: ethIcon,
+  XRP: xrpIcon,
+  CSH: cshIcon,
+  USDT: usdtIcon
+};
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -40,14 +40,6 @@ const CustomTableContainer = styled(TableContainer)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
-const assetsData = [
-  { name: 'BTC', balance: '*****', pnl: '*****',position: '*****' },
-  { name: 'ETH', balance: '*****', pnl: '*****',position: '*****' },
-  { name: 'XRP', balance: '*****', pnl: '*****',position: '*****' },
-  { name: 'CSH', balance: '*****', pnl: '*****',position: '*****' },
-  { name: 'USDT', balance: '*****', pnl: '*****',position: '*****' },
-];
-
 const AssetRow = ({ asset }) => (
   <TableRow>
     <TableCell>
@@ -61,14 +53,36 @@ const AssetRow = ({ asset }) => (
       </Grid>
     </TableCell>
     <TableCell>{asset.balance}</TableCell>
-    <TableCell>{asset.pnl}</TableCell>
-    <TableCell>{asset.position}</TableCell>
   </TableRow>
 );
 
 const Assets = () => {
   const classes = useStyles();
-  const [value, setValue] = React.useState(0);
+  const [value, setValue] = useState(0);
+  const [assetsData, setAssetsData] = useState([]);
+  const coinOrder = ['BTC', 'ETH', 'XRP', 'CSH', 'USDT'];
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await apiClient.get('/member/wallet');
+        const data = response.data;
+
+        // JSON 객체를 배열로 변환
+        const assetsArray = Object.keys(data).map(key => ({
+          name: key,
+          balance: data[key] + " " + key
+        }))
+        .sort((a, b) => coinOrder.indexOf(a.name) - coinOrder.indexOf(b.name));
+
+        setAssetsData(assetsArray);
+      } catch (error) {
+        console.error('Error fetching assets data:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -89,8 +103,6 @@ const Assets = () => {
                   <TableRow>
                     <TableCell>Asset</TableCell>
                     <TableCell>Wallet Balance</TableCell>
-                    <TableCell>Unrealized PNL</TableCell>
-                    <TableCell>Position</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

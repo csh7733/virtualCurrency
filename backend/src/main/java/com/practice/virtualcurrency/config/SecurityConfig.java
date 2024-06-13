@@ -1,4 +1,4 @@
-package com.practice.virtualcurrency;
+package com.practice.virtualcurrency.config;
 import com.practice.virtualcurrency.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +27,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/login").permitAll()
                         .requestMatchers("/api/register").permitAll()
+                        .requestMatchers("/api/market-data/**").permitAll()
+                        .requestMatchers("/ws/**", "/app/**", "/topic/**").permitAll()
                         .anyRequest().authenticated())
                 .build();
     }

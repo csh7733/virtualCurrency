@@ -1,6 +1,7 @@
 package com.practice.virtualcurrency.service.member;
 
 import com.practice.virtualcurrency.domain.member.Member;
+import com.practice.virtualcurrency.domain.order.Order;
 import com.practice.virtualcurrency.repository.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -33,6 +35,11 @@ public class MemberServiceImpl implements MemberService{
     }
 
     @Override
+    public Optional<Member> findMemberByUsernameWithOrders(String username) {
+        return memberRepository.findByUsernameWithOrders(username);
+    }
+
+    @Override
     public Optional<Member> findMemberByEmail(String email) {
         return memberRepository.findByEmail(email);
     }
@@ -54,5 +61,11 @@ public class MemberServiceImpl implements MemberService{
         member.getWallet().put(coinName, totalQuantity);
     }
 
+    @Override
+    public Map<String, Double> getWallet(String username) {
+        Member member = memberRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return member.getWallet();
+    }
 
 }

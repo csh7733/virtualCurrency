@@ -1,22 +1,24 @@
 package com.practice.virtualcurrency.dto.command;
 
 import com.practice.virtualcurrency.domain.member.Member;
+import com.practice.virtualcurrency.domain.order.OrderType;
 import com.practice.virtualcurrency.domain.order.Trade;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 public class OrderCommand {
-    private Member member;
+    private OrderType orderType;
+    private String username;
     private String coinName;
     private Double price;
-    private Double cash;
-    private Double quantity;
+    @Builder.Default
+    private Double cash = 0.0;
+    @Builder.Default
+    private Double quantity = 0.0;
     private Double leverage;
     private Trade trade;
 }

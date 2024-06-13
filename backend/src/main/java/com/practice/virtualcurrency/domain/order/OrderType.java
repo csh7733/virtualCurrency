@@ -3,13 +3,13 @@ package com.practice.virtualcurrency.domain.order;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum Trade {
-    QUANTITY("quantity"),
-    PRICE("price");
+public enum OrderType {
+    LIMIT("limit"),
+    MARKET("market");
 
     private final String value;
 
-    Trade(String value) {
+    OrderType(String value) {
         this.value = value;
     }
 
@@ -19,10 +19,10 @@ public enum Trade {
     }
 
     @JsonCreator
-    public static Trade fromValue(String value) {
-        for (Trade trade : values()) {
-            if (trade.value.equalsIgnoreCase(value)) {
-                return trade;
+    public static OrderType fromValue(String value) {
+        for (OrderType orderType : values()) {
+            if (orderType.value.equalsIgnoreCase(value)) {
+                return orderType;
             }
         }
         throw new IllegalArgumentException("Unknown value: " + value);

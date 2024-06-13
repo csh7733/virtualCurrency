@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Paper } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import apiClient from '../../apiClient'; // axios 인스턴스 임포트
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: '20px',
@@ -9,13 +10,22 @@ const CustomPaper = styled(Paper)(({ theme }) => ({
   marginBottom: '20px',
 }));
 
-const user = {
-  username: 'JohnDoe',
-  email: 'john.doe@example.com',
-  // 사용자 정보를 더 추가할 수 있습니다.
-};
-
 const Account = () => {
+  const [user, setUser] = useState({ username: '', email: '' });
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await apiClient.get('/member/info');
+        setUser(response.data);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
   return (
     <Container>
       <CustomPaper>

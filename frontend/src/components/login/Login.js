@@ -15,12 +15,14 @@ import Copyright from '../Copyright';
 import darkTheme from '../Theme';
 import logo from '../../assets/logo.png';
 import apiClient from '../../apiClient';
+import useCurrentMember from '../../hooks/useCurrentMember';
 
 const defaultTheme = darkTheme;
 
 export default function Login() {
   const navigate = useNavigate(); 
   const [error, setError] = useState(''); 
+  const { currentUserMutate } = useCurrentMember(); // useCurrentMember 훅 사용
   const handleSubmit = async e => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -32,6 +34,7 @@ export default function Login() {
       });
       const jwt = response.data;
       localStorage.setItem('token', jwt);
+      currentUserMutate();
       navigate('/');
     } catch (error) {
       if (error.response) {

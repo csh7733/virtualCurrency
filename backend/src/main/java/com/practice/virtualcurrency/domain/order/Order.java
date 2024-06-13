@@ -17,6 +17,8 @@ public class Order {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String coinName;
+    private String time;
+    private OrderType orderType;
 
     @Builder.Default
     private Double price = 0.0;

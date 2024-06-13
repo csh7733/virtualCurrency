@@ -11,7 +11,6 @@ import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
-import Badge from '@mui/material/Badge';
 import Container from '@mui/material/Container';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -22,6 +21,7 @@ import { MainListItems, SecondaryListItems } from './home/listItems';
 import darkTheme from './Theme';
 import Logo from '../assets/logo.png';
 import Title from '../assets/title.png';
+import useCurrentMember from '../hooks/useCurrentMember';
 
 const drawerWidth = 240;
 
@@ -75,6 +75,9 @@ export default function Layout() {
   const [open, setOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
 
+  const { currentMember, isLoading, error,currentUserMutate } = useCurrentMember(); // useCurrentMember 훅 사용
+  const isLoggedIn = !!currentMember; // 사용자 정보가 있으면 true
+
   const toggleDrawer = () => {
     setOpen(!open);
   };
@@ -88,15 +91,15 @@ export default function Layout() {
   };
 
   const handleLogout = () => {
-    // Add your logout logic here
-    console.log('Logged out');
+    localStorage.removeItem("token");
+  
+    // SWR의 캐시에서 currentMember 삭제
+    currentUserMutate(null, false);
     handleMenuClose();
   };
 
   const isMenuOpen = Boolean(anchorEl);
   const menuId = 'primary-search-account-menu';
-
-  const flag = true;
 
   return (
     <ThemeProvider theme={defaultTheme}>
@@ -123,9 +126,17 @@ export default function Layout() {
               </Link>
             </IconButton>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }} />
-            <Button href="login" color="inherit" sx={{ mr: 2 }}>Log In</Button>
-            <Button href="register" color="inherit" sx={{ mr: 2 }}>Register</Button>
-            {flag && (
+            {!isLoggedIn && (
+              <>
+                <Button href="login" color="inherit" sx={{ mr: 2 }}>Log In</Button>
+                <Button href="register" color="inherit" sx={{ mr: 2 }}>Register</Button>
+              </>
+            )}
+            {isLoggedIn && (
+              <>
+              <Typography color="inherit" sx={{ mr: 2 }}>
+                Welcome, {currentMember}!
+              </Typography>
               <IconButton
                 edge="end"
                 aria-label="account of current user"
@@ -136,6 +147,7 @@ export default function Layout() {
               >
                 <AccountCircle />
               </IconButton>
+            </>
             )}
           </Toolbar>
         </AppBar>
@@ -186,7 +198,7 @@ export default function Layout() {
         open={isMenuOpen}
         onClose={handleMenuClose}
       >
-        <MenuItem disabled>{`Username: po***@gmail.com`}</MenuItem>
+        <MenuItem disabled>{`Username: ${currentMember || ''}`}</MenuItem>
         <MenuItem onClick={handleLogout}>Log Out</MenuItem>
       </Menu>
     </ThemeProvider>

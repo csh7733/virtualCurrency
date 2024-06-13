@@ -53,12 +53,4 @@ public class LoginController {
         return ResponseEntity.ok("ok");
     }
 
-    @PostMapping("/test")
-    public String test() {
-        log.info("hi");
-
-        return "hi";
-    }
-
-
 }

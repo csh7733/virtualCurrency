@@ -41,6 +41,7 @@ public class Member {
         Map<String, Double> initialWallet = new HashMap<>();
         for (String coinName : VirtualCurrencyConst.WALLET_ELEMENTS) {
             initialWallet.put(coinName, 0.0);
+            if(coinName.equals("USDT"))  initialWallet.put(coinName, 10000.0);
         }
         return initialWallet;
     }

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import { Paper, Grid, Typography, TextField, Button, ButtonGroup, Slider, ThemeProvider, Select, MenuItem, FormControl, InputAdornment, Modal } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import darkTheme from '../Theme';
+import apiClient from '../../apiClient'; // axios 인스턴스 임포트
+import { useMarketData } from '../context/MarketData';
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: '20px',
@@ -50,7 +52,7 @@ const LeverageModal = ({ open, onClose, leverage, setLeverage }) => {
           sx={{ mt: 4 }}
         />
         <Typography sx={{ mt: 2 }}>Maximum leverage you can choose: 500x</Typography>
-        <Typography sx={{ mt: 1 }}>Please note that higher the leverage, the faster it can be liquidated..</Typography>
+        <Typography sx={{ mt: 1 }}>Please note that higher the leverage, the faster it can be liquidated.</Typography>
         <Typography sx={{ mt: 1, color: 'red' }}>
           Selecting higher leverage such as [10x] increases your liquidation risk. Always manage your risk levels.
         </Typography>
@@ -71,15 +73,30 @@ const LeverageModal = ({ open, onClose, leverage, setLeverage }) => {
   );
 };
 
-
-const TradeOptions = () => {
+const TradeOptions = ({ coinName }) => {
   const [orderType, setOrderType] = useState('limit');
   const [sizeType, setSizeType] = useState('USDT');
   const [size, setSize] = useState('0');
   const [price, setPrice] = useState('7313.13'); // Example price
-  const accountBalance = 1000.00; // Example account balance
+  const [accountBalance, setAccountBalance] = useState(0); // Initial state for account balance
   const [leverage, setLeverage] = useState(1); // Example leverage
+  const { marketData} = useMarketData();
   const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
+
+  const fetchAccountBalance = async (setAccountBalance) => {
+    try {
+      const response = await apiClient.get('/member/wallet');
+      const data = response.data;
+      setAccountBalance(data.USDT || 0); // Set USDT balance from response data
+    } catch (error) {
+      console.error('Error fetching account balance:', error);
+    }
+  };
+  
+  // 2. useEffect 내에서 fetchAccountBalance 호출
+  useEffect(() => {
+    fetchAccountBalance(setAccountBalance);
+  }, []);
 
   const handleSizeChange = (event, newValue) => {
     if (typeof newValue === 'number') {
@@ -94,12 +111,52 @@ const TradeOptions = () => {
   };
 
   const handleSizeTypeChange = (event) => {
-    setSizeType(event.target.value);
-    setSize('0');
+    if (orderType === 'market') {
+      setSizeType('USDT');
+    } else {
+      setSizeType(event.target.value);
+    }
+    setSize('0');;
   };
 
-  const handlePositionChange = (position) => {
-    // Handle position change logic here
+  const handlePositionChange = async (position) => {
+    const tradeType = sizeType === 'USDT' ? 'price' : 'quantity';
+    const finalPrice = orderType === 'market' ? marketData[coinName] : parseFloat(price); // Use market data price if order type is market
+    let adjustedSize = parseFloat(size);
+    const accountBalanceLeverage = accountBalance * leverage;
+  
+    if (sizeType === 'USDT') {
+      const total = adjustedSize;
+      if (total > accountBalanceLeverage) {
+        adjustedSize = accountBalance;
+      } else {
+        adjustedSize = (total / leverage).toFixed(2);
+      }
+    } else {
+      const total = adjustedSize * finalPrice;
+      if (total > accountBalanceLeverage) {
+        adjustedSize = (accountBalanceLeverage / finalPrice).toFixed(2);
+      }
+    }
+  
+    const orderData = {
+      orderType: orderType,
+      coinName,
+      price: finalPrice.toFixed(2), // Use the final price
+      size: adjustedSize,
+      leverage,
+      trade: tradeType,
+      position : position.toUpperCase(),
+    };
+    console.log('Order:', orderData);
+    try {
+      const response = await apiClient.post('/order', orderData);
+      console.log('Order response:', response.data);
+      // Handle the response if needed
+    } catch (error) {
+      console.error('Error placing order:', error);
+    }
+    fetchAccountBalance(setAccountBalance);
   };
 
   const handlePriceChange = (event) => {
@@ -114,10 +171,18 @@ const TradeOptions = () => {
   };
 
   const calculateTotal = () => {
-    const sizeValue = parseFloat(size);
-    const priceValue = parseFloat(price);
+      let sizeValue = parseFloat(size);
+      let priceValue = parseFloat(price);
+      if(orderType === 'market') {
+          priceValue = marketData[coinName];
+          if(sizeType !== 'USDT') setSizeType('USDT');
+      }
 
-    if (sizeType === 'BTC') {
+      if (isNaN(sizeValue)) {
+        sizeValue = 0;
+    }
+
+    if (sizeType !== 'USDT') {
       const total = sizeValue * priceValue;
       return total > (accountBalance * leverage) ? (accountBalance * leverage).toFixed(2) : total.toFixed(2);
     } else {
@@ -188,14 +253,18 @@ const TradeOptions = () => {
                 endAdornment: (
                   <InputAdornment position="end">
                     <FormControl variant="standard">
-                      <Select
-                        value={sizeType}
-                        onChange={handleSizeTypeChange}
-                        disableUnderline
-                      >
-                        <MenuItem value="USDT">USDT</MenuItem>
-                        <MenuItem value="BTC">BTC</MenuItem>
-                      </Select>
+                      {orderType === 'market' ? (
+                        <Typography variant="subtitle1">USDT</Typography>
+                      ) : (
+                        <Select
+                          value={sizeType}
+                          onChange={handleSizeTypeChange}
+                          disableUnderline
+                        >
+                          <MenuItem value="USDT">USDT</MenuItem>
+                          <MenuItem value={coinName}>{coinName}</MenuItem>
+                        </Select>
+                      )}
                     </FormControl>
                   </InputAdornment>
                 ),
@@ -206,7 +275,7 @@ const TradeOptions = () => {
           {sizeType === 'USDT' && (
             <Grid item xs={12}>
               <Slider
-                value={sizePercentage}
+                value={isNaN(sizePercentage) ? 0 : sizePercentage}
                 min={0}
                 max={100}
                 step={1}

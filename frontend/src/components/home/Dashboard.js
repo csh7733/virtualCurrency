@@ -101,7 +101,7 @@ export default function Dashboard() {
                 }}
               >
                 <Current coinName={coinName} />
-                <TradeOptions />
+                <TradeOptions coinName={coinName} />
               </Paper>
             </Grid>
             {showOrderBook && (
